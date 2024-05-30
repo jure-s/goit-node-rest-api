@@ -1,1 +1,1 @@
-# goit-node-rest-api
+# goit-university-node-rest-api.
