@@ -1,8 +1,14 @@
+import fs from "fs/promises";
+import path from "path";
+import gravatar from "gravatar";
 import * as authServices from "../services/authServices.js";
 import HttpError from "../helpers/HttpError.js";
 import ctrlWrapper from "../decorators/ctrlWrapper.js";
 import compareHash from "../helpers/compareHash.js";
 import { createToken } from "../helpers/jwt.js";
+import jimpAvatar from "../helpers/jimpAvatar.js";
+
+const postersPath = path.resolve("public", "avatars");
 
 const register = async (req, res) => {
   const { email } = req.body;
@@ -12,7 +18,9 @@ const register = async (req, res) => {
     throw HttpError(409, "Email in use");
   }
 
-  const newUser = await authServices.saveUser(req.body);
+  const avatarUrl = gravatar.url(email);
+
+  const newUser = await authServices.saveUser({ ...req.body, avatarUrl });
 
   res.status(201).json({
     user: {
@@ -71,9 +79,27 @@ const logout = async (req, res) => {
   });
 };
 
+const updateAvatar = async (req, res) => {
+  const { _id } = req.user;
+  const { path: oldPath, originalname } = req.file;
+  const filename = `${_id}_${originalname}`;
+  const newPath = path.join(postersPath, filename);
+ 
+  await jimpAvatar(oldPath);
+  await fs.rename(oldPath, newPath);
+
+  const avatarUrl = path.join("avatars", filename);
+  await authServices.updateUser({ _id }, { avatarUrl });
+
+  res.status(200).json({
+    avatarUrl,
+  });
+};
+
 export default {
   register: ctrlWrapper(register),
   login: ctrlWrapper(login),
   logout: ctrlWrapper(logout),
   current: ctrlWrapper(current),
+  updateAvatar: ctrlWrapper(updateAvatar),
 };
